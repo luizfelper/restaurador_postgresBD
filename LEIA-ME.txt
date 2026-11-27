@@ -1,0 +1,150 @@
+Restaurador Legião — PostgreSQL
+================================
+
+Aplicativo em Python (Tkinter) para extrair um backup .sql.gz e restaurá-lo
+em um servidor PostgreSQL usando o cliente psql.
+
+O programa foi feito para o fluxo:
+
+    postgres_backup_Legiao_20261127_1304.sql.gz
+        -> extrai postgres_backup_Legiao_20261127_1304.sql
+        -> executa o psql e grava restore.log na mesma pasta
+
+
+COMO EXECUTAR
+-------------
+
+Opção 1 (recomendada): dê dois cliques em
+
+    Restaurador Legiao.bat
+
+Opção 2: dê dois cliques em
+
+    Restaurador Legiao.pyw
+
+Opção 3: pelo terminal
+
+    python restaurador_legiao.py
+
+
+PASSO A PASSO
+-------------
+
+1. Clique em "Selecionar .sql.gz…" e escolha o backup.
+   O caminho do .sql de destino aparece logo abaixo.
+
+2. Preencha a conexão:
+
+   Host / IPv6 .... endereço do servidor. Pode ser um nome
+                    (db.xxxxx.supabase.co) ou um IPv6 puro
+                    (2606:4700:...). O programa coloca os
+                    colchetes automaticamente quando necessário.
+   Porta .......... 5432 (padrão).
+   Banco .......... postgres (padrão).
+   Usuário ........ postgres (padrão). Em pooler do Supabase pode ser
+                    postgres.NOME_DO_PROJETO.
+   Senha .......... senha do usuário.
+   SSL ............ marque "Exigir SSL" para Supabase (sslmode=require).
+
+3. Confira o caminho do psql. O programa tenta detectar sozinho
+   (C:\Program Files\PostgreSQL\17\bin\psql.exe). Se necessário, use
+   "Detectar" ou "Procurar…".
+
+4. Clique em "Testar conexão" (opcional) para validar host, porta,
+   usuário, senha e SSL.
+
+5. Clique em "Extrair e restaurar".
+   - O .sql.gz é extraído para o .sql de mesmo nome.
+   - O psql é executado e o log é gravado em restore.log, na pasta do .sql.
+   - O andamento e os erros aparecem na janela.
+
+"Somente extrair" gera o .sql sem restaurar.
+"Cancelar" interrompe a extração ou o psql em andamento.
+
+
+SOBRE A SENHA
+-------------
+
+A senha NÃO é gravada em disco. Ela é passada ao psql pela variável de
+ambiente PGPASSWORD, e não aparece na linha de comando nem no log.
+Host, porta, banco, usuário e caminho do psql ficam salvos em:
+
+    %APPDATA%\LegiaoRestaurador\config.json
+
+
+COMANDO EQUIVALENTE
+-------------------
+
+O aplicativo executa, em resumo:
+
+    set PGPASSWORD=<senha>
+    psql -w -X "postgresql://postgres@HOST:5432/postgres?sslmode=require&connect_timeout=20" -f "ARQUIVO.sql"
+
+O -w impede que o psql fique parado pedindo senha.
+O -X ignora configurações pessoais do .psqlrc.
+A saída do psql é gravada em restore.log (o arquivo é sobrescrito a cada
+restauração).
+
+
+ERROS ESPERADOS NO SUPABASE
+---------------------------
+
+Em bancos Supabase, o usuário postgres normalmente não é superusuário.
+Por isso o log pode conter erros como:
+
+    ERROR: Non-superuser owned event trigger must execute a
+    non-superuser owned function
+    ERROR: must be owner of extension ...
+    ERROR: permission denied for schema ...
+
+O psql continua a restauração após esses erros. O aplicativo conta as
+linhas com "ERROR:" e, ao final, mostra um aviso com a quantidade e o
+primeiro erro encontrado. Isso NÃO significa necessariamente que a
+restauração falhou; confira o restante do restore.log e valide os dados.
+
+Se o psql terminar com código diferente de zero, aí sim houve uma falha
+fatal (conexão, arquivo etc.), e o aplicativo mostra uma mensagem de erro.
+
+
+SOLUÇÃO DE PROBLEMAS
+--------------------
+
+psql não encontrado
+    Instale o PostgreSQL (cliente) ou informe manualmente o caminho do
+    psql.exe em "3. Cliente psql".
+
+Falha de conexão / timeout
+    Confira host, porta, senha e SSL. Redes corporativas ou provedores
+    podem bloquear a porta 5432. O Supabase exige SSL.
+
+IPv6
+    Informe o endereço sem "postgresql://" e sem a porta. Exemplos aceitos:
+        2606:4700:4700::1111
+        [2606:4700:4700::1111]
+        [2606:4700:4700::1111]:5432
+    Nome de host também funciona normalmente.
+
+Arquivo .sql em uso
+    Feche editores/planilhas que estejam com o .sql aberto antes de
+    extrair novamente.
+
+Backup muito grande
+    A extração usa memória constante (lê em blocos). A restauração pode
+    demorar; acompanhe o tempo e a contagem de erros na barra de status.
+
+
+ARQUIVOS
+--------
+
+restaurador_legiao.py .... código do aplicativo
+Restaurador Legiao.bat ... inicia sem console (Windows)
+Restaurador Legiao.pyw ... alternativa de duplo clique
+LEIA-ME.txt .............. este arquivo
+
+
+AVISO IMPORTANTE
+----------------
+
+A restauração executa o SQL do backup no banco de destino e pode
+sobrescrever tabelas, dados e objetos existentes. Confirme o host e o
+banco antes de clicar em "Extrair e restaurar".
